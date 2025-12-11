@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Détail de l'article{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-body">
+                    <!-- Première rangée pour l'image et le contenu principal -->
+                    <div class="row"> 
+                        <!-- COLONNE GAUCHE (Image) -->
+                        <div class="col-md-4">
+                            {% if post.image %}
+                                <img class="img-thumbnail rounded" 
+                                     src="{{ postModel.image.url }}" 
+                                     alt="Image de {{ post.title }}"
+                                     style="width: 100%; height: 200px; object-fit: cover;">
+                            {% else %}
+                                <img class="img-thumbnail rounded" 
+                                     src="{% static 'user.png' %}"
+                                     alt="Avatar par défaut"
+                                     style="width: 80%; height: 200px; object-fit: cover;">
+                            {% endif %}
+                        </div>
+                        <!-- COLONNE DROITE (Contenu) -->
+                        <div class="col-md-8">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">Par {{ post.author.username }} le {{ post.date_created|date:"d F Y" }}</small>
+                                </div>
+                                            
+                                {% if user.is_authenticated and user == post.author %}
+                                <div>
+                                    <a class="btn btn-primary btn-sm" href="{% url 'blog-post_edit' post.pk %}">Edit</a>
+                                    <a class="btn btn-danger btn-sm ms-2" href="{% url 'blog-post_delete' post.pk %}">Delete</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <hr>
+                            <h3>{{ post.title }}</h3>
+                            <p class="text-justify">
+                                {{ post.content|safe }}
+                            </p>
+                        </div>
+                    </div> <!-- Fin de la première rangée -->
+
+                    <hr>
+                    <!-- ===================== SECTION COMMENTAIRES DÉROULANTE ===================== -->
+                    <div class="mt-4">
+                        <p>
+                            <!-- CE BOUTON EST LE DÉCLENCHEUR. Il cible la div avec l'id="collapseComments" -->
+                            <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapseComments" role="button" aria-expanded="false" aria-controls="collapseComments">
+                                Afficher les commentaires ({{ post.comments.all.count }})
+                            </a>
+                        </p>
+
+                        <!-- CORRECTION 1 : ON ENVELOPPE TOUTE LA SECTION DANS CETTE DIV -->
+                        <!-- La classe "collapse" la cache par défaut. L'id "collapseComments" la lie au bouton ci-dessus. -->
+                        <div class="collapse" id="collapseComments">
+                            <div class="card card-body"> <!-- Ajout d'un card-body pour un meilleur style -->
+
+                                <!-- Affichage des commentaires existants -->
+                                {% for comment in post.comments.all %}
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <p>{{ comment.content|linebreaksbr }}</p>
+                                            <small class="text-muted">
+                                                -- Écrit par {{ comment.author.username }} le {{ comment.date_created|date:"d M Y" }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <p>Il n'y a pas encore de commentaires pour cet article. Soyez le premier !</p>
+                                {% endfor %}
+
+                                <!-- Formulaire pour ajouter un nouveau commentaire -->
+                                <hr>
+                                <h5>Ajouter un commentaire</h5>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    {{ c_form|crispy }}
+                                    
+                                    <!-- CORRECTION 2 : Le bouton doit être de type "submit" pour envoyer le formulaire -->
+                                    <button type="submit" class="btn btn-success mt-2">Ajouter un commentaire</button>
+                                </form>
+                            </div>
+                        </div>
+                        <!-- FIN DE LA DIV DÉROULANTE -->
+
+                    </div>
+                    <!-- ======================= FIN DE LA SECTION COMMENTAIRES ======================= -->
+
+                </div> <!-- Fin de card-body -->
+            </div> <!-- Fin de card -->
+        </div> <!-- Fin de col-md-10 -->
+    </div> <!-- Fin de la row principale -->
+</div> <!-- Fin du container -->
+{% endblock %}

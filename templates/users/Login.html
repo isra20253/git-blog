@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<!-- La classe .cover applique l'image de fond définie dans styles.css -->
+<div class="cover d-flex align-items-center" style="min-height: 100vh;">
+    <div class="container">
+        <div class="row justify-content-center">
+            
+            <!-- Carte de connexion -->
+            <div class="col-md-5 col-lg-4">
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <h4 class="text-center mb-4">Login Page</h4>
+                        <hr>
+                        
+                        <form method="POST">
+                            {% csrf_token %}
+                            <!-- Le formulaire Crispy -->
+                            {{ form|crispy }}
+                            
+                            <!-- Bouton Login (w-100 pour pleine largeur) -->
+                            <input class="btn btn-primary w-100 mt-3" type="submit" value="Login">
+                        </form>
+                        
+                        <div class="text-center mt-3">
+                            <a href="{% url 'password_reset' %}" class="text-decoration-none">Forgot password?</a>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Bouton Sign Up -->
+                        <div class="text-center">
+                            <p class="small">Don't have an account?</p>
+                            <!-- ATTENTION : Vérifiez que 'users-sign_up' est bien le name=... dans votre urls.py -->
+                            <!-- Souvent c'est 'users-register' -->
+                            <a class="btn btn-success w-100" href="{% url 'users-sign_up' %}">Sign Up</a>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,54 @@
+<nav class="navbar navbar-expand-lg navbar-primary bg-primary">
+  <div class="container">
+
+
+    
+        
+    <!-- 1. LE LOGO -->
+    <a class="navbar-brand text-white" href="/">Postscriber</a>
+
+    <!-- 2. BOUTON MOBILE -->
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- 3. LE MENU -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ms-auto">
+        
+        <!-- ============================================= -->
+        <!-- LOGIQUE : C'EST ICI QUE LA MAGIE OPÈRE        -->
+        <!-- ============================================= -->
+        
+            <!-- CAS 1 : L'UTILISATEUR EST CONNECTÉ -->
+            <!-- On affiche Logout et Profil -->
+            {% if request.user.is_authenticated %}    
+            <li class="nav-item">
+              <a class="nav-link text-white" href="{% url 'users-profile' %}">Profil</a>
+            </li>
+            <li class="nav-item">
+              <form action="{% url 'users-logout' %}" method="post">
+                {% csrf_token %}
+                <button class="nav-link btn btn-link text-white" type="submit">Logout</button>
+              </form>
+            </li>
+
+        {% else %}
+            <!-- CAS 2 : L'UTILISATEUR N'EST PAS CONNECTÉ -->
+            <!-- On affiche Login et Sign Up -->
+            
+            <li class="nav-item">
+              <a class="nav-link text-white" href="{% url 'users-login' %}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="{% url 'users-sign_up' %}">Sign Up</a>
+            </li>
+
+        {% endif %}
+        
+        <!-- ============================================= -->
+        
+      </ul>
+    </div>
+  </div>
+</nav>

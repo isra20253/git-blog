@@ -1,0 +1,15 @@
+.cover {
+    /* AJOUTEZ '/static/' devant le nom de l'image */
+    background: url('/static/back2.jpg'); 
+    
+    /* Ajoutez no-repeat pour éviter que l'image se répète si elle est petite */
+    background-repeat: no-repeat;
+    
+    background-position: center;
+    background-size: cover;
+    
+    /* Assurez-vous que la div prend bien toute la hauteur et largeur */
+    height: 100vh;
+    width: 100%;
+}
+    

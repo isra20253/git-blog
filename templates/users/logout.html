@@ -1,0 +1,30 @@
+{% extends "base.html" %} <!-- Vérifie si c'est "base.html" ou "blog/base.html" -->
+{% block title %}Logout{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        
+        <div class="col-md-6"> <!-- J'ai élargi un peu (6 au lieu de 4) -->
+            <div class="card shadow">
+                <div class="card-body text-center"> <!-- Centrer le texte -->
+                    <h4>Déconnexion</h4>
+                    <hr>
+                    
+                   <div class="alert alert-info">
+                        Vous avez été déconnecté avec succès.
+                   </div>
+
+                   <!-- Lien pour se reconnecter -->
+                   <div class="mt-3">
+                        <small>
+                            <a href="{% url 'users-login' %}">Se reconnecter</a>
+                        </small>
+                   </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
