@@ -27,6 +27,13 @@ class signUpForm(UserCreationForm):
         if 'password2' in self.fields:
             self.fields['password2'].help_text = None
 
+    def clean_username(self):
+        """Valide qu'un nom d'utilisateur identique n'existe pas (insensible à la casse)."""
+        username = self.cleaned_data.get('username')
+        if username and User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.")
+        return username
+
     
 
 # --- Formulaire 2 : Mise à jour de l'utilisateur ---

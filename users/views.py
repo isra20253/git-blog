@@ -4,6 +4,7 @@ from .forms import signUpForm, UserUpdateForm , ProfileUpdateForm    # Assure-to
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .models import profileModel
+from django.db import IntegrityError
 
 
 
@@ -16,8 +17,14 @@ def sign_up(request):
     if request.method == 'POST':
         form = signUpForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect('blog-index') 
+            try:
+                form.save()
+                messages.success(request, 'Votre compte a été créé avec succès. Vous pouvez vous connecter.')
+                return redirect('blog-index')
+            except IntegrityError:
+                # Cas rare : la validation n'a pas attrapé le doublon, on le gère proprement
+                form.add_error('username', 'Ce nom d\'utilisateur est déjà utilisé.')
+                messages.error(request, 'Impossible de créer le compte : ce nom d\'utilisateur existe déjà.')
     else:
         form = signUpForm()
     

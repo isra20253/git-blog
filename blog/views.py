@@ -2,7 +2,9 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import PostModelForm, postUpdateform, commentForm
-from .models import postModel
+from .models import postModel, PostImage
+from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden # <-- NOUVEAU : On importe la réponse "Accès Interdit"
 
@@ -10,11 +12,27 @@ from django.http import HttpResponseForbidden # <-- NOUVEAU : On importe la rép
 def index(request):
     # Si on envoie le formulaire (POST)
     if request.method == 'POST':
-        form = PostModelForm(request.POST)
+        # On passe aussi request.FILES pour récupérer les images uploadées
+        form = PostModelForm(request.POST, request.FILES)
         if form.is_valid():
             instance = form.save(commit=False)
             instance.author = request.user # On assigne l'auteur manuellement
             instance.save()
+
+            # Traitement des images (plusieurs fichiers possibles)
+            images = request.FILES.getlist('images')
+            # Validation: taille max et type (simple)
+            MAX_SIZE = getattr(settings, 'MAX_IMAGE_UPLOAD_SIZE', 5 * 1024 * 1024)  # 5MB default
+            allowed_types = ('image/jpeg', 'image/png', 'image/gif')
+            for img in images:
+                if img.size > MAX_SIZE:
+                    messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
+                    continue
+                if hasattr(img, 'content_type') and img.content_type not in allowed_types:
+                    messages.error(request, f"Type de fichier non autorisé: {img.name}")
+                    continue
+                PostImage.objects.create(post=instance, image=img)
+
             return redirect('blog-index')
     # Si on affiche la page (GET)
     else:
@@ -51,6 +69,19 @@ def post_detail(request, pk):
     }
     return render(request, 'post_detail.html', context)
 
+
+@login_required
+def post_image_delete(request, pk):
+    """Supprime une image associée à un post (seul l'auteur peut le faire)."""
+    image = get_object_or_404(PostImage, id=pk)
+    post = image.post
+    if request.user != post.author:
+        return HttpResponseForbidden("Vous n'êtes pas autorisé à supprimer cette image.")
+    if request.method == 'POST':
+        image.delete()
+        messages.success(request, 'Image supprimée.')
+    return redirect('blog-post_detail', pk=post.id)
+
 @login_required
 def post_edit(request, pk):
     post = get_object_or_404(postModel, id=pk)
@@ -63,9 +94,23 @@ def post_edit(request, pk):
     # ========================== FIN DE LA VÉRIFICATION ==========================
 
     if request.method == 'POST':
-        form = postUpdateform(request.POST, instance=post)
+        # Accept file uploads when editing également
+        form = postUpdateform(request.POST, request.FILES, instance=post)
         if form.is_valid():
             form.save()
+
+            images = request.FILES.getlist('images')
+            MAX_SIZE = getattr(settings, 'MAX_IMAGE_UPLOAD_SIZE', 5 * 1024 * 1024)
+            allowed_types = ('image/jpeg', 'image/png', 'image/gif')
+            for img in images:
+                if img.size > MAX_SIZE:
+                    messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
+                    continue
+                if hasattr(img, 'content_type') and img.content_type not in allowed_types:
+                    messages.error(request, f"Type de fichier non autorisé: {img.name}")
+                    continue
+                PostImage.objects.create(post=post, image=img)
+
             return redirect('blog-post_detail', pk=post.id)
     else:
         form = postUpdateform(instance=post)

@@ -8,9 +8,29 @@
                 <div class="col-md-8 offset-md-2">
                     <div class="card shadow sticky-top" style="top: 20px;">
                         <div class="card-body">
-                            <form action="" method="post">
+                            <form action="" method="post" enctype="multipart/form-data">
                                 {% csrf_token %}
                                 {{ form|crispy }}
+                                <div class="mt-2">
+                                    <label for="id_images" class="form-label">Ajouter des images (optionnel)</label>
+                                    <input type="file" name="images" id="id_images" multiple class="form-control">
+                                </div>
+                                <!-- Liste des images existantes -->
+                                {% if post.images.exists %}
+                                    <hr>
+                                    <h6>Images actuelles</h6>
+                                    <div class="d-flex flex-wrap">
+                                        {% for img in post.images.all %}
+                                            <div class="me-2 mb-2 position-relative">
+                                                <img src="{{ img.image.url }}" class="img-thumbnail" style="width:100px;height:100px;object-fit:cover;">
+                                                <form method="post" action="{% url 'blog-post_image_delete' img.id %}" style="position:absolute; top:2px; right:2px;">
+                                                    {% csrf_token %}
+                                                    <button class="btn btn-sm btn-danger" type="submit">×</button>
+                                                </form>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <button type="submit" class="btn btn-primary">Enregistrer</button>
                             </form>
 
