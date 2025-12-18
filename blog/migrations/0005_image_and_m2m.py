@@ -8,15 +8,40 @@ def copy_postimages_to_image(apps, schema_editor):
     Image = apps.get_model('blog', 'Image')
     Post = apps.get_model('blog', 'postModel')
 
+    through = Post._meta.get_field('images').remote_field.through
+
     for pi in PostImage.objects.all():
         # Create or get an Image that points to the same file
         img, created = Image.objects.get_or_create(image=pi.image)
-        # Link to the related post
+        # Link to the related post, handling different through models
         try:
             post = Post.objects.get(id=pi.post_id)
-            post.images.add(img)
         except Post.DoesNotExist:
             continue
+
+        # If the M2M uses an auto-created through model (normal), insert a through instance linking post<->image
+        if getattr(through._meta, 'auto_created', False):
+            # find field names for the relations to post and image
+            fk_to_post = None
+            fk_to_image = None
+            for f in through._meta.fields:
+                if getattr(f, 'is_relation', False) and getattr(f, 'related_model', None) is Post:
+                    fk_to_post = f.name
+                if getattr(f, 'is_relation', False) and getattr(f, 'related_model', None) is Image:
+                    fk_to_image = f.name
+            kwargs = {}
+            if fk_to_post:
+                kwargs[fk_to_post] = post
+            if fk_to_image:
+                kwargs[fk_to_image] = img
+            through.objects.create(**kwargs)
+        else:
+            # Legacy through model (likely PostImage) – create a legacy instance referencing the same file
+            try:
+                through.objects.create(post=post, image=pi.image)
+            except Exception:
+                # best effort: skip if schema mismatch
+                continue
 
 
 class Migration(migrations.Migration):
