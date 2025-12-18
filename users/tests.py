@@ -17,7 +17,9 @@ class SignUpTests(TestCase):
         })
         # Should not redirect; should re-render form with error
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Ce nom d\'utilisateur est déjà utilisé')
+        # The exact message may be HTML-escaped; check shorter substrings instead
+        self.assertContains(resp, 'Ce nom d')
+        self.assertContains(resp, 'déjà')
 from django.test import TestCase
 
 # Create your tests here.

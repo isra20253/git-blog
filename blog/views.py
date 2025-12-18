@@ -2,11 +2,13 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import PostModelForm, postUpdateform, commentForm
-from .models import postModel, PostImage
+from .models import postModel, PostImage, Image
 from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden # <-- NOUVEAU : On importe la réponse "Accès Interdit"
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.cache import cache
 
 @login_required
 def index(request):
@@ -25,32 +27,64 @@ def index(request):
             MAX_SIZE = getattr(settings, 'MAX_IMAGE_UPLOAD_SIZE', 5 * 1024 * 1024)  # 5MB default
             allowed_types = ('image/jpeg', 'image/png', 'image/gif')
             for img in images:
-                if img.size > MAX_SIZE:
-                    messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
-                    continue
-                if hasattr(img, 'content_type') and img.content_type not in allowed_types:
-                    messages.error(request, f"Type de fichier non autorisé: {img.name}")
-                    continue
-                PostImage.objects.create(post=instance, image=img)
-
+                    if img.size > MAX_SIZE:
+                        messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
+                        continue
+                    if hasattr(img, 'content_type') and img.content_type not in allowed_types:
+                        messages.error(request, f"Type de fichier non autorisé: {img.name}")
+                        continue
+                    # Crée un objet Image centralisé puis lie au post via la relation M2M
+                    image_obj = Image.objects.create(image=img)
+                    instance.images.add(image_obj)
             return redirect('blog-index')
     # Si on affiche la page (GET)
     else:
         form = PostModelForm()
 
-    posts = postModel.objects.all()
-    
+    # Pagination et pré‑chargement des relations pour améliorer les performances
+    page = request.GET.get('page', 1)
+    per_page = getattr(settings, 'POSTS_PER_PAGE', 10)
+
+    # Si l'utilisateur est anonyme, tenter de servir depuis le cache
+    cache_key = f'index:page={page}'
+    if not request.user.is_authenticated:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+    qs = postModel.objects.select_related('author').prefetch_related('images', 'comments').all()
+    paginator = Paginator(qs, per_page)
+    try:
+        posts_page = paginator.page(page)
+    except PageNotAnInteger:
+        posts_page = paginator.page(1)
+    except EmptyPage:
+        posts_page = paginator.page(paginator.num_pages)
+
     context = {
-        'posts': posts,
+        'posts': posts_page,
         'form': form
     }
-    return render(request, 'index.html', context)
+    response = render(request, 'index.html', context)
+
+    if not request.user.is_authenticated:
+        cache.set(cache_key, response, getattr(settings, 'INDEX_CACHE_TIMEOUT', 60))
+
+    return response
 
 @login_required
 def post_detail(request, pk):
     # Utilise get_object_or_404 pour renvoyer une 404 propre
     # au lieu d'une exception 500 si l'objet n'existe pas.
     post = get_object_or_404(postModel, id=pk)
+
+    # Si l'utilisateur est anonyme, tenter d'utiliser le cache (clé par post id)
+    cache_key = f'post_detail:pk={pk}'
+    if not request.user.is_authenticated:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
     if request.method == "POST":
         # Gestion d'envoi de commentaire : on attache l'utilisateur
         # et le post avant de sauvegarder pour éviter les données orphelines.
@@ -62,23 +96,38 @@ def post_detail(request, pk):
             comment_instance.save()
             return redirect('blog-post_detail', pk=post.id)
     else:   
-        c_form = commentForm()      
+        c_form = commentForm()
+
     context = {
         'post': post,
         'c_form': c_form
     }
-    return render(request, 'post_detail.html', context)
+    response = render(request, 'post_detail.html', context)
+
+    if not request.user.is_authenticated:
+        cache.set(cache_key, response, getattr(settings, 'POST_DETAIL_CACHE_TIMEOUT', 60))
+
+    return response
 
 
 @login_required
 def post_image_delete(request, pk):
     """Supprime une image associée à un post (seul l'auteur peut le faire)."""
-    image = get_object_or_404(PostImage, id=pk)
-    post = image.post
+    # On récupère un `Image` (M2M). Le formulaire envoie `post_id` pour savoir de quel post il s'agit.
+    image = get_object_or_404(Image, id=pk)
+    post_id = request.POST.get('post_id')
+    if not post_id:
+        return HttpResponseForbidden("Post non précisé pour la suppression de l'image.")
+    from .models import postModel as PostModelCls
+    post = get_object_or_404(PostModelCls, id=post_id)
     if request.user != post.author:
         return HttpResponseForbidden("Vous n'êtes pas autorisé à supprimer cette image.")
     if request.method == 'POST':
-        image.delete()
+        # On retire le lien M2M entre le post et l'image
+        image.posts.remove(post)
+        # Si l'image n'appartient plus à aucun post, on la supprime complètement (et son fichier)
+        if image.posts.count() == 0:
+            image.delete()
         messages.success(request, 'Image supprimée.')
     return redirect('blog-post_detail', pk=post.id)
 
@@ -103,14 +152,14 @@ def post_edit(request, pk):
             MAX_SIZE = getattr(settings, 'MAX_IMAGE_UPLOAD_SIZE', 5 * 1024 * 1024)
             allowed_types = ('image/jpeg', 'image/png', 'image/gif')
             for img in images:
-                if img.size > MAX_SIZE:
-                    messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
-                    continue
-                if hasattr(img, 'content_type') and img.content_type not in allowed_types:
-                    messages.error(request, f"Type de fichier non autorisé: {img.name}")
-                    continue
-                PostImage.objects.create(post=post, image=img)
-
+                    if img.size > MAX_SIZE:
+                        messages.error(request, f"L'image {img.name} est trop volumineuse (max {MAX_SIZE} bytes).")
+                        continue
+                    if hasattr(img, 'content_type') and img.content_type not in allowed_types:
+                        messages.error(request, f"Type de fichier non autorisé: {img.name}")
+                        continue
+                    image_obj = Image.objects.create(image=img)
+                    post.images.add(image_obj)
             return redirect('blog-post_detail', pk=post.id)
     else:
         form = postUpdateform(instance=post)

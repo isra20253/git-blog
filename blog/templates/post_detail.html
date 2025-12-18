@@ -29,10 +29,11 @@
                                     <div class="d-flex mt-2">
                                                 {% for img in post.images.all %}
                                                     <div class="position-relative me-2">
-                                                        <img src="{{ img.image.url }}" class="img-thumbnail" style="width:60px;height:60px;object-fit:cover;">
+                                                        <img src="{{ img.thumbnail_url }}" class="img-thumbnail" style="width:60px;height:60px;object-fit:cover;">
                                                         {% if user.is_authenticated and user == post.author %}
                                                             <form method="post" action="{% url 'blog-post_image_delete' img.id %}" style="position:absolute; top:0; right:0;">
                                                                 {% csrf_token %}
+                                                                <input type="hidden" name="post_id" value="{{ post.id }}">
                                                                 <button class="btn btn-sm btn-danger" type="submit" title="Supprimer">×</button>
                                                             </form>
                                                         {% endif %}
