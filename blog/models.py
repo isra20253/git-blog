@@ -34,48 +34,6 @@ class postModel(models.Model):
         return self.comments.count()
 
 
-class PostImage(models.Model):
-    """Stocke des images liées à un post (plusieurs images possibles)."""
-    # Champ legacy : rename related_name to avoid collision with new postModel.images ManyToMany
-    post = models.ForeignKey(postModel, related_name='legacy_images', on_delete=models.CASCADE)
-    # Limiter les extensions courantes et stocker dans post_images/
-    image = models.ImageField(upload_to='post_images', validators=[FileExtensionValidator(allowed_extensions=['jpg','jpeg','png','gif'])])
-    date_created = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'Image for {self.post.title} ({self.id})'
-
-    def save(self, *args, **kwargs):
-        """Redimensionne l'image si elle est trop grande pour économiser l'espace disque."""
-        super().save(*args, **kwargs)
-
-        try:
-            img_path = self.image.path
-        except (ValueError, OSError):
-            return
-
-        if not os.path.exists(img_path):
-            return
-
-        try:
-            img = PilImage.open(img_path)
-        except (FileNotFoundError, OSError):
-            return
-
-        max_size = (1200, 1200)
-        if img.height > max_size[1] or img.width > max_size[0]:
-            img.thumbnail(max_size)
-            img.save(img_path)
-
-    def delete(self, *args, **kwargs):
-        """Supprime le fichier du disque lorsque l'objet est supprimé."""
-        try:
-            img_path = self.image.path
-            if os.path.exists(img_path):
-                os.remove(img_path)
-        except Exception:
-            pass
-        super().delete(*args, **kwargs)
  
 
 class Image(models.Model):

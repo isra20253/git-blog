@@ -2,7 +2,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import PostModelForm, postUpdateform, commentForm
-from .models import postModel, PostImage, Image
+from .models import postModel, Image
 from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth.decorators import login_required

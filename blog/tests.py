@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from .models import postModel, PostImage, Image as ImageModel
+from .models import postModel, Image as ImageModel
 from django.core.files.uploadedfile import SimpleUploadedFile
 import io
 from PIL import Image as PilImage
